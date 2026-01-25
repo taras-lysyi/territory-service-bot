@@ -169,6 +169,7 @@ func (r *congregationStorage) ListTerritoryGroups(filter *service.ListTerritoryG
 
 	var groups []entity.CongregationTerritoryGroup
 	err := stmt.
+		Order("title ASC").
 		Find(&groups).
 		Error
 	if err != nil {

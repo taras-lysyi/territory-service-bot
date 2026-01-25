@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/taraslis453/territory-service-bot/internal/entity"
+	"github.com/taraslis453/territory-service-bot/pkg/sheets"
 	tb "gopkg.in/telebot.v3"
 )
 
@@ -23,6 +24,7 @@ func NewBotService(options *Options) *botService {
 			cfg:      options.Cfg,
 			logger:   options.Logger.Named("BotService"),
 			storages: options.Storages,
+			sheets:   options.Sheets,
 		},
 	}
 }
@@ -120,6 +122,8 @@ func (s *botService) HandleMessage(c tb.Context, b *tb.Bot) error {
 		return s.handleViewMyTerritoryList(c, user)
 	case entity.AddTerritoryButton:
 		return s.handleAddTerritory(c, user)
+	case entity.ViewReportButton:
+		return s.handleViewReport(c, user)
 	}
 
 	switch user.Stage {
@@ -300,6 +304,9 @@ func (s *botService) RenderMenu(c tb.Context, b *tb.Bot) error {
 		buttons = append(buttons, []tb.ReplyButton{
 			{Text: entity.AddTerritoryButton},
 		})
+		buttons = append(buttons, []tb.ReplyButton{
+			{Text: entity.ViewReportButton},
+		})
 	}
 	logger = logger.With("buttons", buttons)
 	logger.Info("successfully rendered menu buttons")
@@ -396,6 +403,38 @@ func (s *botService) handleAddTerritory(c tb.Context, user *entity.User) error {
 	return s.sendAddTerritoryInstruction(c)
 }
 
+func (s *botService) handleViewReport(c tb.Context, user *entity.User) error {
+	logger := s.logger.
+		Named("handleViewReport")
+
+	logger = logger.With("user", user)
+
+	if user.Role != entity.UserRoleAdmin {
+		logger.Info("user is not admin")
+		return c.Send(MessageUserIsNotAdmin)
+	}
+
+	congregation, err := s.storages.Congregation.GetCongregation(&GetCongregationFilter{
+		ID: user.CongregationID,
+	})
+	if err != nil {
+		logger.Error("failed to get congregation", "err", err)
+		return err
+	}
+	if congregation == nil {
+		logger.Info("congregation not found")
+		return c.Send(MessageCongregationNotFound)
+	}
+
+	if congregation.SpreadsheetID == "" {
+		logger.Info("spreadsheet not configured")
+		return c.Send(MessageReportNotConfigured)
+	}
+
+	link := sheets.GetSpreadsheetLink(congregation.SpreadsheetID)
+	return c.Send(MessageReportLink(link), tb.ModeMarkdown)
+}
+
 func (s *botService) handleViewTerritoryGroupList(c tb.Context, user *entity.User) error {
 	logger := s.logger.
 		Named("handleViewTerritoryGroupList")
@@ -436,27 +475,23 @@ func (s *botService) handleViewTerritoryGroupList(c tb.Context, user *entity.Use
 		return nil
 	}
 
-	groupIDTitles := make(map[string]string)
-	for _, group := range groups {
-		groupIDTitles[group.ID] = group.Title
+	// Count available territories per group
+	countByGroupID := make(map[string]int)
+	for _, territory := range territories {
+		countByGroupID[territory.GroupID]++
 	}
 
-	countAvailableTerritoriesInGroups := make(map[string]int)
-	for _, territory := range territories {
-		groupTitle, ok := groupIDTitles[territory.GroupID]
-		if !ok {
-			logger.Warn("group title not found", "group_id", territory.GroupID)
+	// Build buttons in sorted order (groups are already sorted alphabetically)
+	var buttons [][]tb.InlineButton
+	for _, group := range groups {
+		count := countByGroupID[group.ID]
+		if count == 0 {
 			continue
 		}
-		countAvailableTerritoriesInGroups[groupTitle]++
-	}
-
-	var buttons [][]tb.InlineButton
-	for groupName, territoriesCount := range countAvailableTerritoriesInGroups {
 		buttons = append(buttons, []tb.InlineButton{
 			{
-				Unique: groupName + territoryGroupButtonUnique,
-				Text:   groupName + " (" + strconv.Itoa(territoriesCount) + ")",
+				Unique: group.Title + territoryGroupButtonUnique,
+				Text:   group.Title + " (" + strconv.Itoa(count) + ")",
 			},
 		})
 	}
@@ -623,7 +658,7 @@ func (s *botService) handleLeaveTerritoryNoteMessage(c tb.Context, user *entity.
 func (s botService) handleReturnTerritoryRequest(c tb.Context, b *tb.Bot, user *entity.User, territoryID string) error {
 	logger := s.logger.
 		Named("handleReturnTerritoryRequest").
-		With(user, "user", territoryID, territoryID)
+		With("user", user, "territoryID", territoryID)
 
 	territory, err := s.storages.Congregation.GetTerritory(&GetTerritoryFilter{
 		ID: territoryID,
@@ -637,14 +672,69 @@ func (s botService) handleReturnTerritoryRequest(c tb.Context, b *tb.Bot, user *
 		return c.Send(MessageTerritoryNotFound)
 	}
 
+	// Store publisher name before clearing InUseByUserID (for sheets)
+	publisherName := user.FullName
+
 	territory.InUseByUserID = nil
-	territory.LastTakenAt = time.Now()
+	returnDate := time.Now()
+	territory.LastTakenAt = returnDate
 
 	_, err = s.storages.Congregation.UpdateTerritory(territory)
 	if err != nil {
 		logger.Error("failed to update territory", "err", err)
 		return err
 	}
+
+	// Record territory return in Google Sheets (async - non-blocking)
+	// Capture values for goroutine
+	sheetsService := s.sheets
+	storages := s.storages
+	territoryTitle := territory.Title
+	territoryGroupID := territory.GroupID
+	congregationID := territory.CongregationID
+	pubName := publisherName
+	retDate := returnDate
+	log := logger
+
+	go func() {
+		congregation, err := storages.Congregation.GetCongregation(&GetCongregationFilter{
+			ID: congregationID,
+		})
+		if err != nil {
+			log.Error("failed to get congregation for sheets", "err", err)
+			return
+		}
+		if congregation == nil || congregation.SpreadsheetID == "" {
+			return
+		}
+
+		// Get territory group title for composite key
+		groups, err := storages.Congregation.ListTerritoryGroups(&ListTerritoryGroupsFilter{
+			IDs: []string{territoryGroupID},
+		})
+		if err != nil {
+			log.Error("failed to get territory group for sheets", "err", err)
+			return
+		}
+		if len(groups) == 0 {
+			log.Error("territory group not found for sheets", "groupID", territoryGroupID)
+			return
+		}
+		groupTitle := groups[0].Title
+
+		err = sheetsService.RecordTerritoryReturn(
+			congregation.SpreadsheetID,
+			territoryTitle,
+			groupTitle,
+			pubName,
+			retDate,
+		)
+		if err != nil {
+			log.Error("failed to record territory return in sheets", "err", err)
+		} else {
+			log.Info("recorded territory return in sheets")
+		}
+	}()
 
 	if user.Role == entity.UserRolePublisher {
 		admins, err := s.storages.User.ListUsers(&ListUsersFilter{
@@ -917,7 +1007,7 @@ func (s *botService) handleViewTerritoriesList(c tb.Context, user *entity.User, 
 		err := c.Send(sendObject, &sendOptions, tb.ModeMarkdown)
 		if err != nil {
 			logger.Error("failed to send territory", "err", err)
-			return err
+			continue
 		}
 	}
 
@@ -1071,6 +1161,57 @@ func (s *botService) handleApproveTerritoryTakeRequest(c tb.Context, b *tb.Bot, 
 		logger.Error("failed to update territory", "err", err)
 		return err
 	}
+
+	// Record territory take in Google Sheets (async - non-blocking)
+	// Capture values for goroutine
+	sheetsServiceTake := s.sheets
+	storagesTake := s.storages
+	territoryTitleTake := territory.Title
+	territoryGroupIDTake := territory.GroupID
+	congregationIDTake := territory.CongregationID
+	publisherFullName := publisher.FullName
+	lastTakenAt := territory.LastTakenAt
+	logTake := logger
+
+	go func() {
+		congregation, err := storagesTake.Congregation.GetCongregation(&GetCongregationFilter{
+			ID: congregationIDTake,
+		})
+		if err != nil {
+			logTake.Error("failed to get congregation for sheets", "err", err)
+			return
+		}
+		if congregation == nil || congregation.SpreadsheetID == "" {
+			return
+		}
+
+		// Get territory group title
+		groups, err := storagesTake.Congregation.ListTerritoryGroups(&ListTerritoryGroupsFilter{
+			IDs: []string{territoryGroupIDTake},
+		})
+		if err != nil {
+			logTake.Error("failed to get territory group for sheets", "err", err)
+			return
+		}
+		if len(groups) == 0 {
+			logTake.Error("territory group not found for sheets", "groupID", territoryGroupIDTake)
+			return
+		}
+		groupTitle := groups[0].Title
+
+		err = sheetsServiceTake.RecordTerritoryTake(
+			congregation.SpreadsheetID,
+			territoryTitleTake,
+			groupTitle,
+			publisherFullName,
+			lastTakenAt,
+		)
+		if err != nil {
+			logTake.Error("failed to record territory take in sheets", "err", err)
+		} else {
+			logTake.Info("recorded territory take in sheets")
+		}
+	}()
 
 	var notes []string
 	for _, note := range territory.Notes {

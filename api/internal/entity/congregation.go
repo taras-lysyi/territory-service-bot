@@ -3,9 +3,10 @@ package entity
 import "time"
 
 type Congregation struct {
-	ID     string                       `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
-	Name   string                       `gorm:"uniqueIndex"`
-	Groups []CongregationTerritoryGroup `gorm:"foreignkey:CongregationID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+	ID            string                       `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	Name          string                       `gorm:"uniqueIndex"`
+	SpreadsheetID string                       // Google Sheets spreadsheet ID for territory reports
+	Groups        []CongregationTerritoryGroup `gorm:"foreignkey:CongregationID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 }
 
 type CongregationTerritoryGroup struct {

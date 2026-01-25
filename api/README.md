@@ -137,6 +137,69 @@ TS_POSTGRESQL_DATABASE    # Database name
 TS_TELEGRAM_BOT_TOKEN     # Bot token from @BotFather
 ```
 
+Optional (for territory tracking in Google Sheets):
+```bash
+TS_GOOGLE_CREDENTIALS_JSON  # Service account JSON (raw or base64 encoded)
+```
+
+## Google Sheets Integration (Territory Reports)
+
+The bot can track territory assignments in Google Sheets. Each congregation has its own spreadsheet, with separate sheets for each service year (September - August).
+
+### Setup Google Sheets
+
+1. **Create a Google Cloud Project:**
+   - Go to [Google Cloud Console](https://console.cloud.google.com)
+   - Create a new project or select existing one
+   - Enable the "Google Sheets API" (APIs & Services → Enable APIs)
+
+2. **Create a Service Account:**
+   - Go to IAM & Admin → Service Accounts
+   - Click "Create Service Account"
+   - Give it a name (e.g., "territory-bot")
+   - Click "Create and Continue" → "Done"
+
+3. **Generate Credentials:**
+   - Click on the service account you created
+   - Go to "Keys" tab → "Add Key" → "Create new key"
+   - Select JSON format → "Create"
+   - Save the downloaded JSON file
+
+4. **Set the Environment Variable:**
+   ```bash
+   # Option 1: Raw JSON (escape quotes)
+   export TS_GOOGLE_CREDENTIALS_JSON='{"type":"service_account",...}'
+   
+   # Option 2: Base64 encoded (recommended for Cloud Run)
+   export TS_GOOGLE_CREDENTIALS_JSON=$(base64 -i credentials.json)
+   ```
+
+5. **Create a Spreadsheet for Each Congregation:**
+   - Create a new Google Spreadsheet
+   - Share it with the service account email (found in the JSON file as `client_email`)
+   - Give "Editor" access
+   - Copy the spreadsheet ID from the URL: `https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/edit`
+
+6. **Configure the Congregation:**
+   - Update the congregation's `spreadsheet_id` field in the database:
+   ```sql
+   UPDATE congregations SET spreadsheet_id = 'YOUR_SPREADSHEET_ID' WHERE name = 'Your Congregation';
+   ```
+
+### How It Works
+
+- **Service Year:** Runs from September to August (e.g., "2024-2025" = Sep 2024 - Aug 2025)
+- **Sheet Structure:** Each service year gets its own tab/sheet
+- **Data Columns:**
+  - Column A: Territory number (e.g., "123-а")
+  - Column B: Group/Place (e.g., "Львів")
+  - Column C: Last processing date
+  - Columns D+: Publisher name, Date taken, Date returned (repeating for each cycle)
+
+- **When a territory is taken (approved):** The bot finds or creates the territory row, then appends the publisher name and date
+- **When a territory is returned:** The bot fills in the return date in the matching column
+- **Report button:** Admins can click "📊 Звіт" to get a link to their congregation's spreadsheet
+
 ## Troubleshooting
 
 **Database won't start:**

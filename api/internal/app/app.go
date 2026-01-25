@@ -16,6 +16,7 @@ import (
 	"github.com/taraslis453/territory-service-bot/internal/storage"
 	"github.com/taraslis453/territory-service-bot/pkg/database"
 	"github.com/taraslis453/territory-service-bot/pkg/logging"
+	"github.com/taraslis453/territory-service-bot/pkg/sheets"
 )
 
 func Run(cfg *config.Config) {
@@ -54,10 +55,17 @@ func Run(cfg *config.Config) {
 		Chat:         storage.NewChatStorage(sql),
 	}
 
+	sheetsService, err := sheets.New(cfg.Google.CredentialsJSON)
+	if err != nil || sheetsService == nil {
+		logger.Error("failed to initialize Google Sheets service", "err", err)
+		return
+	}
+
 	serviceOptions := &service.Options{
 		Cfg:      cfg,
 		Logger:   logger,
 		Storages: storages,
+		Sheets:   *sheetsService,
 	}
 
 	services := service.Services{

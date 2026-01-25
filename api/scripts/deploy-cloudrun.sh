@@ -32,6 +32,29 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+check_billing() {
+    log_info "Checking if billing is enabled..."
+    
+    # Try to get billing account (this will fail if billing is not enabled)
+    if ! gcloud billing projects describe $PROJECT_ID &> /dev/null; then
+        log_error "Billing is not enabled for this project!"
+        log_error ""
+        log_error "Cloud Run requires billing to be enabled (even for free tier)."
+        log_error ""
+        log_error "To enable billing:"
+        log_error "  1. Visit: https://console.developers.google.com/billing/enable?project=$PROJECT_ID"
+        log_error "  2. Link a billing account to your project"
+        log_error "  3. Wait a few minutes for changes to propagate"
+        log_error "  4. Retry the deployment"
+        log_error ""
+        log_error "Note: Cloud Run has a generous free tier that should cover most small bots."
+        log_error "You won't be charged unless you exceed the free limits."
+        exit 1
+    fi
+    
+    log_info "Billing is enabled ✓"
+}
+
 check_requirements() {
     log_info "Checking requirements..."
     
@@ -47,6 +70,11 @@ check_requirements() {
         log_error "No GCP project set. Please run:"
         log_error "  gcloud config set project YOUR_PROJECT_ID"
         exit 1
+    fi
+    
+    # Check billing (only for operations that require it)
+    if [ "$1" = "check-billing" ]; then
+        check_billing
     fi
     
     log_info "Requirements check passed. Project: $PROJECT_ID"
@@ -160,7 +188,7 @@ show_status() {
 # Main script
 case "${1:-}" in
     setup)
-        check_requirements
+        check_requirements check-billing
         setup_artifact_registry
         ;;
     build)
@@ -168,7 +196,7 @@ case "${1:-}" in
         build_and_push
         ;;
     deploy)
-        check_requirements
+        check_requirements check-billing
         deploy_to_cloudrun
         ;;
     logs)
@@ -180,7 +208,7 @@ case "${1:-}" in
         show_status
         ;;
     all)
-        check_requirements
+        check_requirements check-billing
         setup_artifact_registry
         build_and_push
         deploy_to_cloudrun

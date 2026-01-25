@@ -6,6 +6,7 @@ const (
 	AddTerritoryButton         = "🌍 Додати територію"
 	ViewTerritoryListButton    = "🔍 Пошук територій"
 	ViewMyTerritoryListButton  = "🗂️ Мої території"
+	ViewReportButton           = "📊 Звіт"
 	ApprovePublisherButton     = "✅ Прийняти"
 	RejectPublisherButton      = "❌ Відхилити"
 	ApproveTakeTerritoryButton = "✅ Прийняти"

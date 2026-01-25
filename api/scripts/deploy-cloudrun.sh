@@ -160,6 +160,7 @@ deploy_to_cloudrun() {
         --set-env-vars="TS_POSTGRESQL_PASSWORD=${TS_POSTGRESQL_PASSWORD}" \
         --set-env-vars="TS_POSTGRESQL_DATABASE=${TS_POSTGRESQL_DATABASE}" \
         --set-env-vars="TS_TELEGRAM_BOT_TOKEN=${TS_TELEGRAM_BOT_TOKEN}" \
+        --set-env-vars="TS_GOOGLE_CREDENTIALS_JSON=${TS_GOOGLE_CREDENTIALS_JSON}" \
         --no-allow-unauthenticated
     
     log_info "Deployment complete!"
@@ -233,6 +234,7 @@ case "${1:-}" in
         echo ""
         echo "Optional environment variables:"
         echo "  TS_LOG_LEVEL (default: info)"
+        echo "  TS_GOOGLE_CREDENTIALS_JSON (base64-encoded service account JSON)"
         exit 1
         ;;
 esac

@@ -25,6 +25,7 @@ type GetUserFilter struct {
 type ListUsersFilter struct {
 	CongregationID string
 	Role           entity.UserRole
+	IDs            []string
 }
 
 type CongregationStorage interface {

@@ -30,14 +30,16 @@ func NewBotService(options *Options) *botService {
 }
 
 // NOTE: using short names because of telegram button query limit of 64 bytes
-const approvePublisherJoinRequestButtonUnique = "ap"
-const rejectPublisherJoinRequestButtonUnique = "rp"
-const territoryGroupButtonUnique = "-tg"
-const takeTerritoryButtonUnique = "-tt"
-const returnTerritoryButtonUnique = "-rt"
-const approveTerritoryTakeButtonUnique = "-att"
-const rejectTerritoryTakeButtonUnique = "-rtt"
-const leaveTerritoryNoteButtonUnique = "-ltn"
+const (
+	approvePublisherJoinRequestButtonUnique = "ap"
+	rejectPublisherJoinRequestButtonUnique  = "rp"
+	territoryGroupButtonUnique              = "-tg"
+	takeTerritoryButtonUnique               = "-tt"
+	returnTerritoryButtonUnique             = "-rt"
+	approveTerritoryTakeButtonUnique        = "-att"
+	rejectTerritoryTakeButtonUnique         = "-rtt"
+	leaveTerritoryNoteButtonUnique          = "-ltn"
+)
 
 const messengerIDContextKey = "messengerID"
 
@@ -530,15 +532,17 @@ func (s *botService) handleViewMyTerritoryList(c tb.Context, user *entity.User) 
 
 		var sendObject interface{}
 		if territory.FileType == entity.CongregationTerritoryFileTypePhoto {
-			sendObject = &tb.Photo{File: tb.File{
-				FileID: territory.FileID,
-			},
+			sendObject = &tb.Photo{
+				File: tb.File{
+					FileID: territory.FileID,
+				},
 				Caption: caption,
 			}
 		} else if territory.FileType == entity.CongregationTerritoryFileTypeDocument {
-			sendObject = &tb.Document{File: tb.File{
-				FileID: territory.FileID,
-			},
+			sendObject = &tb.Document{
+				File: tb.File{
+					FileID: territory.FileID,
+				},
 				Caption: caption,
 			}
 		} else {
@@ -943,20 +947,33 @@ func (s *botService) handleViewTerritoriesList(c tb.Context, user *entity.User, 
 		return err
 	}
 
+	userIDs := make([]string, 0)
+	for _, territory := range territories {
+		if territory.InUseByUserID != nil {
+			userIDs = append(userIDs, *territory.InUseByUserID)
+		}
+	}
+
+	usersByID := make(map[string]*entity.User)
+	if len(userIDs) > 0 {
+		users, err := s.storages.User.ListUsers(&ListUsersFilter{
+			IDs: userIDs,
+		})
+		if err != nil {
+			logger.Error("failed to list users", "err", err)
+			return err
+		}
+		for i := range users {
+			usersByID[users[i].ID] = &users[i]
+		}
+	}
+
 	for _, territory := range territories {
 		var sendOptions tb.SendOptions
 
 		var inUseByFullName string
 		if territory.InUseByUserID != nil {
-
-			publisher, err := s.storages.User.GetUser(&GetUserFilter{
-				ID: *territory.InUseByUserID,
-			})
-			if err != nil {
-				logger.Error("failed to get publisher", "err", err)
-				return err
-			}
-			if publisher != nil {
+			if publisher, ok := usersByID[*territory.InUseByUserID]; ok && publisher != nil {
 				inUseByFullName = publisher.FullName
 			}
 		}
@@ -978,15 +995,17 @@ func (s *botService) handleViewTerritoriesList(c tb.Context, user *entity.User, 
 
 		var sendObject interface{}
 		if territory.FileType == entity.CongregationTerritoryFileTypePhoto {
-			sendObject = &tb.Photo{File: tb.File{
-				FileID: territory.FileID,
-			},
+			sendObject = &tb.Photo{
+				File: tb.File{
+					FileID: territory.FileID,
+				},
 				Caption: caption,
 			}
 		} else if territory.FileType == entity.CongregationTerritoryFileTypeDocument {
-			sendObject = &tb.Document{File: tb.File{
-				FileID: territory.FileID,
-			},
+			sendObject = &tb.Document{
+				File: tb.File{
+					FileID: territory.FileID,
+				},
 				Caption: caption,
 			}
 		} else {
@@ -1004,8 +1023,8 @@ func (s *botService) handleViewTerritoriesList(c tb.Context, user *entity.User, 
 			markup := &tb.ReplyMarkup{InlineKeyboard: keyboard}
 			sendOptions.ReplyMarkup = markup
 		}
-		err := c.Send(sendObject, &sendOptions, tb.ModeMarkdown)
-		if err != nil {
+
+		if err := c.Send(sendObject, &sendOptions, tb.ModeMarkdown); err != nil {
 			logger.Error("failed to send territory", "err", err)
 			continue
 		}
@@ -1054,15 +1073,17 @@ func (s *botService) handleTakeTerritoryRequest(c tb.Context, b *tb.Bot, user *e
 		message := fmt.Sprintf("<a href=\"tg://btn/%s/%s/%s\">\u200b</a> %s", user.ID, territoryID, requestActionStateID, MessageTakeTerritoryRequest(user, territory.Title))
 		var sendObject interface{}
 		if territory.FileType == entity.CongregationTerritoryFileTypePhoto {
-			sendObject = &tb.Photo{File: tb.File{
-				FileID: territory.FileID,
-			},
+			sendObject = &tb.Photo{
+				File: tb.File{
+					FileID: territory.FileID,
+				},
 				Caption: message,
 			}
 		} else if territory.FileType == entity.CongregationTerritoryFileTypeDocument {
-			sendObject = &tb.Document{File: tb.File{
-				FileID: territory.FileID,
-			},
+			sendObject = &tb.Document{
+				File: tb.File{
+					FileID: territory.FileID,
+				},
 				Caption: message,
 			}
 		} else {

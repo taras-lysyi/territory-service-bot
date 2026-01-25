@@ -74,6 +74,9 @@ func (r *userStorage) ListUsers(filter *service.ListUsersFilter) ([]entity.User,
 	if filter.Role != "" {
 		stmt = stmt.Where(&entity.User{Role: filter.Role})
 	}
+	if len(filter.IDs) > 0 {
+		stmt = stmt.Where("id IN ?", filter.IDs)
+	}
 
 	users := make([]entity.User, 0)
 	err := stmt.

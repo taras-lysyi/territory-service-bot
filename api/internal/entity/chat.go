@@ -3,17 +3,15 @@ package entity
 import "github.com/taraslis453/territory-service-bot/pkg/database/datatypes"
 
 const (
-	AddTerritoryButton         = "🌍 Додати територію"
-	ViewTerritoryListButton    = "🔍 Пошук територій"
-	ViewMyTerritoryListButton  = "🗂️ Мої території"
-	ViewReportButton           = "📊 Звіт"
-	ApprovePublisherButton     = "✅ Прийняти"
-	RejectPublisherButton      = "❌ Відхилити"
-	ApproveTakeTerritoryButton = "✅ Прийняти"
-	RejectTakeTerritoryButton  = "❌ Відхилити "
-	TakeTerritoryButton        = "🗺️ Взяти територію "
-	LeaveTerritoryNoteButton   = "📝 Залишити нотатку "
-	ReturnTerritoryButton      = "🔄 Повернути територію"
+	AddTerritoryButton        = "🌍 Додати територію"
+	ViewTerritoryListButton   = "🔍 Пошук територій"
+	ViewMyTerritoryListButton = "🗂️ Мої території"
+	ViewReportButton          = "📊 Звіт"
+	ApprovePublisherButton    = "✅ Прийняти"
+	RejectPublisherButton     = "❌ Відхилити"
+	TakeTerritoryButton       = "🗺️ Взяти територію "
+	LeaveTerritoryNoteButton  = "📝 Залишити нотатку "
+	ReturnTerritoryButton     = "🔄 Повернути територію"
 )
 
 // We suppose that we can have multiple admins.

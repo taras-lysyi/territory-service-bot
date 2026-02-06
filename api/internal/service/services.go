@@ -111,13 +111,8 @@ var (
 		return caption
 	}
 
-	MessageTakeTerritoryRequest = func(user *entity.User, territoryTitle string) string {
-		return fmt.Sprintf("%s хоче взяти %s", user.FullName, territoryTitle)
-	}
-	MessageTakeTerritoryRequestSent = "Запит на взяття території відправлено. Очікуй відповідь 😌"
-
-	MessageTakeTerritoryRequestApproved = func(territoryTitle string, notes []string) string {
-		message := fmt.Sprintf("Запит на взяття території *%s* прийнято ✅", territoryTitle)
+	MessageTerritoryTaken = func(territoryTitle string, notes []string) string {
+		message := fmt.Sprintf("Територію *%s* взято ✅", territoryTitle)
 		if len(notes) > 0 {
 			message += "\n\n"
 			message += "Нотатки:\n"
@@ -127,17 +122,9 @@ var (
 		}
 		return message
 	}
-	MessageTakeTerritoryRequestApprovedDone = func(fullName string, territoryName string) string {
-		return fmt.Sprintf("Вісника *%s* призначено на територію *%s* ✅", fullName, territoryName)
+	MessagePublisherTookTerritory = func(fullName string, territoryTitle string) string {
+		return fmt.Sprintf("Вісник *%s* взяв територію *%s*", fullName, territoryTitle)
 	}
-
-	MessageTakeTerritoryRequestRejected = func(territoryTitle string) string {
-		return fmt.Sprintf("Запит на взяття території *%s* відхилено ❌", territoryTitle)
-	}
-	MessageTakeTerritoryRequestRejectedDone = func(fullName string, territoryTitle string) string {
-		return fmt.Sprintf("Вісника *%s* відхилено на територію *%s* ❌", fullName, territoryTitle)
-	}
-
 	MessagePublisherReturnedTerritory = func(fullName string, territoryTitle string) string {
 		return fmt.Sprintf("Вісник *%s* повернув територію *%s* ✅", fullName, territoryTitle)
 	}

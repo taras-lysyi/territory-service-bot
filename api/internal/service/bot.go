@@ -36,8 +36,6 @@ const (
 	territoryGroupButtonUnique              = "-tg"
 	takeTerritoryButtonUnique               = "-tt"
 	returnTerritoryButtonUnique             = "-rt"
-	approveTerritoryTakeButtonUnique        = "-att"
-	rejectTerritoryTakeButtonUnique         = "-rtt"
 	leaveTerritoryNoteButtonUnique          = "-ltn"
 )
 
@@ -368,13 +366,7 @@ func (s *botService) HandleInlineButton(c tb.Context, b *tb.Bot) error {
 		return s.handleViewTerritoriesList(c, user, groupName)
 	case strings.Contains(data, takeTerritoryButtonUnique):
 		territoryID := strings.Replace(data, takeTerritoryButtonUnique, "", -1)
-		return s.handleTakeTerritoryRequest(c, b, user, territoryID)
-	case strings.Contains(data, approveTerritoryTakeButtonUnique):
-		parts := strings.Split(strings.TrimPrefix(c.Message().CaptionEntities[0].URL, "tg://btn/"), "/")
-		return s.handleApproveTerritoryTakeRequest(c, b, parts[0], parts[1], parts[2])
-	case strings.Contains(data, rejectTerritoryTakeButtonUnique):
-		parts := strings.Split(strings.TrimPrefix(c.Message().CaptionEntities[0].URL, "tg://btn/"), "/")
-		return s.handleRejectTerritoryTakeRequest(c, b, parts[0], parts[1], parts[2])
+		return s.handleTakeTerritory(c, b, user, territoryID)
 	case strings.Contains(data, leaveTerritoryNoteButtonUnique):
 		territoryID := strings.Replace(data, leaveTerritoryNoteButtonUnique, "", -1)
 		return s.handleLeaveTerritoryNoteRequest(c, user, territoryID)
@@ -1033,9 +1025,10 @@ func (s *botService) handleViewTerritoriesList(c tb.Context, user *entity.User, 
 	return nil
 }
 
-func (s *botService) handleTakeTerritoryRequest(c tb.Context, b *tb.Bot, user *entity.User, territoryID string) error {
+func (s *botService) handleTakeTerritory(c tb.Context, b *tb.Bot, user *entity.User, territoryID string) error {
 	logger := s.logger.
-		Named("handleTakeTerritoryRequest")
+		Named("handleTakeTerritory").
+		With("userID", user.ID, "territoryID", territoryID)
 
 	territory, err := s.storages.Congregation.GetTerritory(&GetTerritoryFilter{
 		ID: territoryID,
@@ -1053,129 +1046,8 @@ func (s *botService) handleTakeTerritoryRequest(c tb.Context, b *tb.Bot, user *e
 		return c.Send(MessageTerritoryNotAvailable)
 	}
 
-	admins, err := s.storages.User.ListUsers(&ListUsersFilter{
-		CongregationID: user.CongregationID,
-		Role:           entity.UserRoleAdmin,
-	})
-	if err != nil {
-		logger.Error("failed to get admin user by congregation id", "err", err)
-		return err
-	}
-	if len(admins) == 0 {
-		logger.Info("admin user not found")
-		return c.Send(MessageCongregationAdminNotFound)
-	}
-
-	requestActionStateID := uuid.New().String()
-	var messages []entity.AdminMessage
-
-	for _, admin := range admins {
-		message := fmt.Sprintf("<a href=\"tg://btn/%s/%s/%s\">\u200b</a> %s", user.ID, territoryID, requestActionStateID, MessageTakeTerritoryRequest(user, territory.Title))
-		var sendObject interface{}
-		if territory.FileType == entity.CongregationTerritoryFileTypePhoto {
-			sendObject = &tb.Photo{
-				File: tb.File{
-					FileID: territory.FileID,
-				},
-				Caption: message,
-			}
-		} else if territory.FileType == entity.CongregationTerritoryFileTypeDocument {
-			sendObject = &tb.Document{
-				File: tb.File{
-					FileID: territory.FileID,
-				},
-				Caption: message,
-			}
-		} else {
-			logger.Error("unknown file type", "file_type", territory.FileType)
-			continue
-		}
-		sentMessage, err := b.Send(&recepient{chatID: admin.MessengerChatID},
-			sendObject,
-			&tb.ReplyMarkup{
-				InlineKeyboard: [][]tb.InlineButton{
-					{
-						tb.InlineButton{
-							Unique: approveTerritoryTakeButtonUnique,
-							Text:   entity.ApproveTakeTerritoryButton,
-						},
-						tb.InlineButton{
-							Unique: rejectTerritoryTakeButtonUnique,
-							Text:   entity.RejectTakeTerritoryButton,
-						},
-					},
-				},
-			}, tb.ModeHTML)
-		if err != nil {
-			logger.Error("failed to send message to admin", "err", err)
-			return err
-		}
-
-		messages = append(messages, entity.AdminMessage{
-			MessageID: fmt.Sprint(sentMessage.ID),
-			ChatID:    fmt.Sprint(sentMessage.Chat.ID),
-		})
-	}
-	logger = logger.With("messages", messages)
-
-	createdActionState, err := s.storages.Chat.CreateRequestActionState(&entity.RequestActionState{
-		ID:            requestActionStateID,
-		AdminMessages: messages,
-	})
-	if err != nil {
-		logger.Error("failed to create request action state", "err", err)
-		return err
-	}
-	logger = logger.With("createdActionState", createdActionState)
-
-	messageID := c.Callback().Message.ID
-	_, err = b.EditCaption(&editable{
-		chatID:    c.Callback().Message.Chat.ID,
-		messageID: fmt.Sprintf("%d", messageID),
-	}, MessageTakeTerritoryRequestSent, tb.ModeMarkdown)
-	if err != nil {
-		logger.Error("failed to edit message", "err", err)
-		return err
-	}
-
-	return nil
-}
-
-func (s *botService) handleApproveTerritoryTakeRequest(c tb.Context, b *tb.Bot, publisherID string, territoryID string, requestActionStateID string) error {
-	logger := s.logger.
-		Named("handleApproveTerritoryTakeRequest").
-		With("publisherID", publisherID, "territoryID", territoryID, "requestActionStateID", requestActionStateID)
-
-	publisher, err := s.storages.User.GetUser(&GetUserFilter{
-		ID: publisherID,
-	})
-	if err != nil {
-		logger.Error("failed to get publisher user", "err", err)
-		return err
-	}
-	if publisher == nil {
-		logger.Info("publisher user not found")
-		return c.Send(MessagePublisherNotFound)
-	}
-
-	territory, err := s.storages.Congregation.GetTerritory(&GetTerritoryFilter{
-		ID: territoryID,
-	})
-	if err != nil {
-		logger.Error("failed to get territory", "err", err)
-		return err
-	}
-	if territory == nil {
-		logger.Info("territory not found")
-		return c.Send(MessageTerritoryNotFound)
-	}
-
-	if territory.InUseByUserID != nil {
-		logger.Info("territory is not available")
-		return c.Send(MessageTerritoryNotAvailable)
-	}
-
-	territory.InUseByUserID = &publisherID
+	// Auto-assign territory to the publisher
+	territory.InUseByUserID = &user.ID
 	territory.LastTakenAt = time.Now()
 	territory, err = s.storages.Congregation.UpdateTerritory(territory)
 	if err != nil {
@@ -1184,167 +1056,92 @@ func (s *botService) handleApproveTerritoryTakeRequest(c tb.Context, b *tb.Bot, 
 	}
 
 	// Record territory take in Google Sheets (async - non-blocking)
-	// Capture values for goroutine
-	sheetsServiceTake := s.sheets
-	storagesTake := s.storages
-	territoryTitleTake := territory.Title
-	territoryGroupIDTake := territory.GroupID
-	congregationIDTake := territory.CongregationID
-	publisherFullName := publisher.FullName
+	sheetsService := s.sheets
+	storages := s.storages
+	territoryTitle := territory.Title
+	territoryGroupID := territory.GroupID
+	congregationID := territory.CongregationID
+	publisherFullName := user.FullName
 	lastTakenAt := territory.LastTakenAt
-	logTake := logger
+	log := logger
 
 	go func() {
-		congregation, err := storagesTake.Congregation.GetCongregation(&GetCongregationFilter{
-			ID: congregationIDTake,
+		congregation, err := storages.Congregation.GetCongregation(&GetCongregationFilter{
+			ID: congregationID,
 		})
 		if err != nil {
-			logTake.Error("failed to get congregation for sheets", "err", err)
+			log.Error("failed to get congregation for sheets", "err", err)
 			return
 		}
 		if congregation == nil || congregation.SpreadsheetID == "" {
 			return
 		}
 
-		// Get territory group title
-		groups, err := storagesTake.Congregation.ListTerritoryGroups(&ListTerritoryGroupsFilter{
-			IDs: []string{territoryGroupIDTake},
+		groups, err := storages.Congregation.ListTerritoryGroups(&ListTerritoryGroupsFilter{
+			IDs: []string{territoryGroupID},
 		})
 		if err != nil {
-			logTake.Error("failed to get territory group for sheets", "err", err)
+			log.Error("failed to get territory group for sheets", "err", err)
 			return
 		}
 		if len(groups) == 0 {
-			logTake.Error("territory group not found for sheets", "groupID", territoryGroupIDTake)
+			log.Error("territory group not found for sheets", "groupID", territoryGroupID)
 			return
 		}
 		groupTitle := groups[0].Title
 
-		err = sheetsServiceTake.RecordTerritoryTake(
+		err = sheetsService.RecordTerritoryTake(
 			congregation.SpreadsheetID,
-			territoryTitleTake,
+			territoryTitle,
 			groupTitle,
 			publisherFullName,
 			lastTakenAt,
 		)
 		if err != nil {
-			logTake.Error("failed to record territory take in sheets", "err", err)
+			log.Error("failed to record territory take in sheets", "err", err)
 		} else {
-			logTake.Info("recorded territory take in sheets")
+			log.Info("recorded territory take in sheets")
 		}
 	}()
 
+	// Notify admins that territory was taken
+	admins, err := s.storages.User.ListUsers(&ListUsersFilter{
+		CongregationID: user.CongregationID,
+		Role:           entity.UserRoleAdmin,
+	})
+	if err != nil {
+		logger.Error("failed to get admin users", "err", err)
+		// Don't return error - territory is already assigned, just log the failure
+	} else {
+		for _, admin := range admins {
+			_, err = b.Send(&recepient{chatID: admin.MessengerChatID},
+				MessagePublisherTookTerritory(user.FullName, territory.Title),
+				tb.ModeMarkdown)
+			if err != nil {
+				logger.Error("failed to send notification to admin", "err", err, "adminID", admin.ID)
+			}
+		}
+	}
+
+	// Update the message for the publisher
 	var notes []string
 	for _, note := range territory.Notes {
 		notes = append(notes, note.Text)
 	}
 
-	message := MessageTakeTerritoryRequestApproved(territory.Title, notes)
-	_, err = b.Send(&recepient{chatID: publisher.MessengerChatID}, message, tb.ModeMarkdown)
+	messageID := c.Callback().Message.ID
+	_, err = b.EditCaption(&editable{
+		chatID:    c.Callback().Message.Chat.ID,
+		messageID: fmt.Sprintf("%d", messageID),
+	}, MessageTerritoryTaken(territory.Title, notes), tb.ModeMarkdown)
 	if err != nil {
-		logger.Error("failed to send message to user", "err", err)
-		return err
-	}
-
-	requestActionState, err := s.storages.Chat.GetRequestActionState(requestActionStateID)
-	if err != nil {
-		logger.Error("failed to get request action state", "err", err)
-		return err
-	}
-
-	for _, message := range requestActionState.AdminMessages {
-		chatID, err := strconv.ParseInt(message.ChatID, 10, 64)
-		if err != nil {
-			logger.Error("failed to parse chat id", "err", err)
-			return err
-		}
-
-		_, err = b.EditCaption(&editable{
-			chatID:    chatID,
-			messageID: message.MessageID,
-		}, MessageTakeTerritoryRequestApprovedDone(publisher.FullName, territory.Title), tb.ModeMarkdown)
-		if err != nil {
-			logger.Error("failed to edit message", "err", err)
-			return err
-		}
-	}
-
-	err = s.storages.Chat.DeleteRequestActionState(requestActionStateID)
-	if err != nil {
-		logger.Error("failed to delete request action state", "err", err)
+		logger.Error("failed to edit message", "err", err)
 		return err
 	}
 
 	return nil
 }
 
-func (s *botService) handleRejectTerritoryTakeRequest(c tb.Context, b *tb.Bot, publisherID string, territoryID string, requestActionStateID string) error {
-	logger := s.logger.
-		Named("handleRejectTerritoryTakeRequest").
-		With("publisherID", publisherID, "territoryID", territoryID, "requestActionStateID", requestActionStateID)
-
-	publisher, err := s.storages.User.GetUser(&GetUserFilter{
-		ID: publisherID,
-	})
-	if err != nil {
-		logger.Error("failed to get publisher user", "err", err)
-		return err
-	}
-	if publisher == nil {
-		logger.Info("publisher user not found")
-		return c.Send(MessagePublisherNotFound)
-	}
-
-	territory, err := s.storages.Congregation.GetTerritory(&GetTerritoryFilter{
-		ID: territoryID,
-	})
-	if err != nil {
-		logger.Error("failed to get territory", "err", err)
-		return err
-	}
-	if territory == nil {
-		logger.Info("territory not found")
-		return c.Send(MessageTerritoryNotFound)
-	}
-
-	message := MessageTakeTerritoryRequestRejected(territory.Title)
-	_, err = b.Send(&recepient{chatID: publisher.MessengerChatID}, message, tb.ModeMarkdown)
-	if err != nil {
-		logger.Error("failed to send message to user", "err", err)
-		return err
-	}
-
-	requestActionState, err := s.storages.Chat.GetRequestActionState(requestActionStateID)
-	if err != nil {
-		logger.Error("failed to get request action state", "err", err)
-		return err
-	}
-
-	for _, message := range requestActionState.AdminMessages {
-		chatID, err := strconv.ParseInt(message.ChatID, 10, 64)
-		if err != nil {
-			logger.Error("failed to parse chat id", "err", err)
-			return err
-		}
-
-		_, err = b.EditCaption(&editable{
-			chatID:    chatID,
-			messageID: message.MessageID,
-		}, MessageTakeTerritoryRequestRejectedDone(publisher.FullName, territory.Title), tb.ModeMarkdown)
-		if err != nil {
-			logger.Error("failed to edit message", "err", err)
-			return err
-		}
-	}
-
-	err = s.storages.Chat.DeleteRequestActionState(requestActionStateID)
-	if err != nil {
-		logger.Error("failed to delete request action state", "err", err)
-		return err
-	}
-
-	return nil
-}
 
 func (s *botService) HandleImageUpload(c tb.Context, b *tb.Bot) error {
 	logger := s.logger.

@@ -39,3 +39,14 @@ go.work
 tmp/
 temp/
 
+# Compiled binaries (rebuildable from cmd/)
+fix_skipped
+fix_trailing_spaces
+migrate_territories
+return_territories
+
+# Migration artifacts
+backup_*.json
+file_ids.json
+nodes_cleanup.*
+dry_run_*

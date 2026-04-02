@@ -48,3 +48,4 @@ jobs:
         with:
           version: latest
           working-directory: api
+          only-new-issues: true

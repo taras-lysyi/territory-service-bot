@@ -1,10 +1,10 @@
 package storage
 
 import (
-
-	// third party
+	"errors"
 	"fmt"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/taraslis453/territory-service-bot/internal/entity"
 	"github.com/taraslis453/territory-service-bot/internal/service"
 	"github.com/taraslis453/territory-service-bot/pkg/database"
@@ -46,35 +46,39 @@ func (r *congregationStorage) GetCongregation(filter *service.GetCongregationFil
 }
 
 func (r *congregationStorage) GetOrCreateCongregationTerritoryGroup(options *service.GetOrCreateCongregationTerritoryGroupOptions) (*entity.CongregationTerritoryGroup, error) {
-	territoryGroup := entity.CongregationTerritoryGroup{}
-	err := r.Instance().
-		Where(&entity.CongregationTerritoryGroup{CongregationID: options.CongregationID, Title: options.Title}).
-		Take(&territoryGroup).
-		Error
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			// crete new territory group
-			err = r.Instance().Create(&entity.CongregationTerritoryGroup{
-				CongregationID: options.CongregationID,
-				Title:          options.Title,
-			}).Error
-			if err != nil {
-				return nil, err
-			}
-			err = r.Instance().
-				Where(&entity.CongregationTerritoryGroup{CongregationID: options.CongregationID, Title: options.Title}).
-				Take(&territoryGroup).
-				Error
-			if err != nil {
-				return nil, err
-			}
-
-			return &territoryGroup, nil
+	fetch := func() (*entity.CongregationTerritoryGroup, error) {
+		var g entity.CongregationTerritoryGroup
+		err := r.Instance().
+			Where(&entity.CongregationTerritoryGroup{CongregationID: options.CongregationID, Title: options.Title}).
+			Take(&g).Error
+		if err != nil {
+			return nil, err
 		}
-		return nil, err
+		return &g, nil
 	}
 
-	return &territoryGroup, nil
+	if g, err := fetch(); !errors.Is(err, gorm.ErrRecordNotFound) {
+		return g, err
+	}
+
+	// Group not found — try to create it.
+	newGroup := entity.CongregationTerritoryGroup{
+		CongregationID: options.CongregationID,
+		Title:          options.Title,
+	}
+	if err := r.Instance().Create(&newGroup).Error; err != nil {
+		// Unique constraint violation: a concurrent goroutine created it first — re-fetch.
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			g, err := fetch()
+			if err != nil {
+				return nil, fmt.Errorf("failed to re-fetch territory group after conflict: %w", err)
+			}
+			return g, nil
+		}
+		return nil, fmt.Errorf("failed to create territory group: %w", err)
+	}
+	return &newGroup, nil
 }
 
 func (r *congregationStorage) CreateTerritory(territory *entity.CongregationTerritory) (*entity.CongregationTerritory, error) {

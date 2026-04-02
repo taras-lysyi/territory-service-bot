@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/taraslis453/territory-service-bot/internal/entity"
 	"github.com/taraslis453/territory-service-bot/internal/service"
 	"github.com/taraslis453/territory-service-bot/pkg/database"
@@ -68,8 +67,7 @@ func (r *congregationStorage) GetOrCreateCongregationTerritoryGroup(options *ser
 	}
 	if err := r.Instance().Create(&newGroup).Error; err != nil {
 		// Unique constraint violation: a concurrent goroutine created it first — re-fetch.
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
 			g, err := fetch()
 			if err != nil {
 				return nil, fmt.Errorf("failed to re-fetch territory group after conflict: %w", err)
@@ -78,7 +76,12 @@ func (r *congregationStorage) GetOrCreateCongregationTerritoryGroup(options *ser
 		}
 		return nil, fmt.Errorf("failed to create territory group: %w", err)
 	}
-	return &newGroup, nil
+	// Re-fetch to guarantee all DB-generated fields are populated.
+	g, err := fetch()
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch territory group after create: %w", err)
+	}
+	return g, nil
 }
 
 func (r *congregationStorage) CreateTerritory(territory *entity.CongregationTerritory) (*entity.CongregationTerritory, error) {

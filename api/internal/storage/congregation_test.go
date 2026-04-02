@@ -1,6 +1,9 @@
+//go:build integration
+
 package storage_test
 
 import (
+	"errors"
 	"os"
 	"sync"
 	"testing"
@@ -20,11 +23,23 @@ func testDB(t *testing.T) *gorm.DB {
 	if host == "" {
 		host = "localhost"
 	}
+	user := os.Getenv("TEST_DB_USER")
+	if user == "" {
+		user = "admin"
+	}
+	password := os.Getenv("TEST_DB_PASSWORD")
+	if password == "" {
+		password = "postgres"
+	}
+	dbName := os.Getenv("TEST_DB_NAME")
+	if dbName == "" {
+		dbName = "api"
+	}
 	db, err := database.NewPostgreSQL(&database.PostgreSQLConfig{
-		User:     "admin",
-		Password: "postgres",
+		User:     user,
+		Password: password,
 		Host:     host,
-		Database: "api",
+		Database: dbName,
 	})
 	if err != nil {
 		t.Skipf("staging DB not available (%v) — skipping integration test", err)
@@ -38,7 +53,11 @@ func testCongregationID(t *testing.T, db *gorm.DB) string {
 	t.Helper()
 	var cong entity.Congregation
 	err := db.First(&cong).Error
-	require.NoError(t, err, "need at least one congregation in staging DB")
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Skip("no congregations in staging DB — skipping integration test")
+	}
+	require.NoError(t, err)
+	require.NotEmpty(t, cong.ID, "congregation ID must not be empty")
 	return cong.ID
 }
 
@@ -53,7 +72,7 @@ func TestGetOrCreateCongregationTerritoryGroup_ConcurrentCreation(t *testing.T) 
 	const n = 20
 
 	// Cleanup before and after.
-	db.Exec("DELETE FROM congregation_territory_groups WHERE title = ?", title)
+	require.NoError(t, db.Exec("DELETE FROM congregation_territory_groups WHERE title = ?", title).Error, "pre-test cleanup failed")
 	t.Cleanup(func() {
 		db.Exec("DELETE FROM congregation_territory_groups WHERE title = ?", title)
 	})
@@ -98,6 +117,6 @@ func TestGetOrCreateCongregationTerritoryGroup_ConcurrentCreation(t *testing.T) 
 
 	// Exactly one row in DB.
 	var rows []entity.CongregationTerritoryGroup
-	db.Where("congregation_id = ? AND title = ?", congID, title).Find(&rows)
+	require.NoError(t, db.Where("congregation_id = ? AND title = ?", congID, title).Find(&rows).Error, "final count query failed")
 	assert.Len(t, rows, 1, "expected exactly 1 group in DB, got %d (race not fixed)", len(rows))
 }

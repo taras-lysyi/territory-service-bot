@@ -20,13 +20,13 @@ import (
 )
 
 func Run(cfg *config.Config) {
-	logger := logging.NewZap(cfg.Log.Level)
+	logger := logging.NewZap(cfg.Level)
 
 	sql, err := database.NewPostgreSQL(&database.PostgreSQLConfig{
-		User:     cfg.PostgreSQL.User,
-		Password: cfg.PostgreSQL.Password,
-		Host:     cfg.PostgreSQL.Host,
-		Database: cfg.PostgreSQL.Database,
+		User:     cfg.User,
+		Password: cfg.Password,
+		Host:     cfg.Host,
+		Database: cfg.Database,
 	})
 	if err != nil {
 		logger.Fatal("failed to init postgresql", "err", err)
@@ -55,7 +55,7 @@ func Run(cfg *config.Config) {
 		Chat:         storage.NewChatStorage(sql),
 	}
 
-	sheetsService, err := sheets.New(cfg.Google.CredentialsJSON)
+	sheetsService, err := sheets.New(cfg.CredentialsJSON)
 	if err != nil || sheetsService == nil {
 		logger.Error("failed to initialize Google Sheets service", "err", err)
 		return
@@ -65,7 +65,7 @@ func Run(cfg *config.Config) {
 		Cfg:      cfg,
 		Logger:   logger,
 		Storages: storages,
-		Sheets:   *sheetsService,
+		Sheets:   sheetsService,
 	}
 
 	services := service.Services{
@@ -83,11 +83,11 @@ func Run(cfg *config.Config) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, "OK - Territory Service Bot is running")
+		_, _ = fmt.Fprintf(w, "OK - Territory Service Bot is running")
 	})
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, "healthy")
+		_, _ = fmt.Fprintf(w, "healthy")
 	})
 
 	httpServer := &http.Server{

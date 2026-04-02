@@ -141,7 +141,7 @@ func (s *botService) HandleMessage(c tb.Context, b *tb.Bot) error {
 	case entity.UserAdminStageSendTerritory:
 		return s.sendAddTerritoryInstruction(c)
 	case entity.UserStageLeaveTerritoryNote:
-		territoryID := strings.Replace(c.Message().ReplyTo.Entities[0].URL, "tg://btn/", "", -1)
+		territoryID := strings.ReplaceAll(c.Message().ReplyTo.Entities[0].URL, "tg://btn/", "")
 		return s.handleLeaveTerritoryNoteMessage(c, user, territoryID, c.Message().Text)
 	default:
 		c.Set(messengerIDContextKey, user.MessengerChatID)
@@ -352,22 +352,22 @@ func (s *botService) HandleInlineButton(c tb.Context, b *tb.Bot) error {
 	}
 
 	data := c.Data()
-	data = strings.Replace(data, "\f", "", -1)
+	data = strings.ReplaceAll(data, "\f", "")
 
 	switch {
 	case strings.Contains(data, approvePublisherJoinRequestButtonUnique):
-		publisherID := strings.Split(strings.Replace(c.Message().Entities[0].URL, "tg://btn/", "", -1), "/")[0]
-		requestActionStateID := strings.Replace(c.Message().Entities[0].URL, fmt.Sprintf("tg://btn/%s/", publisherID), "", -1)
+		publisherID := strings.Split(strings.ReplaceAll(c.Message().Entities[0].URL, "tg://btn/", ""), "/")[0]
+		requestActionStateID := strings.ReplaceAll(c.Message().Entities[0].URL, fmt.Sprintf("tg://btn/%s/", publisherID), "")
 		return s.handleApprovePublisherJoinRequest(c, b, user, publisherID, requestActionStateID)
 	case strings.Contains(data, rejectPublisherJoinRequestButtonUnique):
-		publisherID := strings.Split(strings.Replace(c.Message().Entities[0].URL, "tg://btn/", "", -1), "/")[0]
-		requestActionStateID := strings.Replace(c.Message().Entities[0].URL, fmt.Sprintf("tg://btn/%s/", publisherID), "", -1)
+		publisherID := strings.Split(strings.ReplaceAll(c.Message().Entities[0].URL, "tg://btn/", ""), "/")[0]
+		requestActionStateID := strings.ReplaceAll(c.Message().Entities[0].URL, fmt.Sprintf("tg://btn/%s/", publisherID), "")
 		return s.handleRejectPublisherJoinRequest(c, b, user, publisherID, requestActionStateID)
 	case strings.Contains(data, territoryGroupButtonUnique):
-		groupName := strings.Replace(data, territoryGroupButtonUnique, "", -1)
+		groupName := strings.ReplaceAll(data, territoryGroupButtonUnique, "")
 		return s.handleViewTerritoriesList(c, user, groupName)
 	case strings.Contains(data, takeTerritoryButtonUnique):
-		territoryID := strings.Replace(data, takeTerritoryButtonUnique, "", -1)
+		territoryID := strings.ReplaceAll(data, takeTerritoryButtonUnique, "")
 		return s.handleTakeTerritoryRequest(c, b, user, territoryID)
 	case strings.Contains(data, approveTerritoryTakeButtonUnique):
 		parts := strings.Split(strings.TrimPrefix(c.Message().CaptionEntities[0].URL, "tg://btn/"), "/")
@@ -376,10 +376,10 @@ func (s *botService) HandleInlineButton(c tb.Context, b *tb.Bot) error {
 		parts := strings.Split(strings.TrimPrefix(c.Message().CaptionEntities[0].URL, "tg://btn/"), "/")
 		return s.handleRejectTerritoryTakeRequest(c, b, parts[0], parts[1], parts[2])
 	case strings.Contains(data, leaveTerritoryNoteButtonUnique):
-		territoryID := strings.Replace(data, leaveTerritoryNoteButtonUnique, "", -1)
+		territoryID := strings.ReplaceAll(data, leaveTerritoryNoteButtonUnique, "")
 		return s.handleLeaveTerritoryNoteRequest(c, user, territoryID)
 	case strings.Contains(data, returnTerritoryButtonUnique):
-		territoryID := strings.Replace(data, returnTerritoryButtonUnique, "", -1)
+		territoryID := strings.ReplaceAll(data, returnTerritoryButtonUnique, "")
 		return s.handleReturnTerritoryRequest(c, b, user, territoryID)
 	default:
 		return fmt.Errorf("unknown button: %s", data)
@@ -531,21 +531,22 @@ func (s *botService) handleViewMyTerritoryList(c tb.Context, user *entity.User) 
 		caption := MessageMyTerritoryListTerritoryCaption(territory.Title, territory.LastTakenAt, notes)
 
 		var sendObject interface{}
-		if territory.FileType == entity.CongregationTerritoryFileTypePhoto {
+		switch territory.FileType {
+		case entity.CongregationTerritoryFileTypePhoto:
 			sendObject = &tb.Photo{
 				File: tb.File{
 					FileID: territory.FileID,
 				},
 				Caption: caption,
 			}
-		} else if territory.FileType == entity.CongregationTerritoryFileTypeDocument {
+		case entity.CongregationTerritoryFileTypeDocument:
 			sendObject = &tb.Document{
 				File: tb.File{
 					FileID: territory.FileID,
 				},
 				Caption: caption,
 			}
-		} else {
+		default:
 			logger.Error("unknown file type", "file_type", territory.FileType)
 			continue
 		}
@@ -994,21 +995,22 @@ func (s *botService) handleViewTerritoriesList(c tb.Context, user *entity.User, 
 		})
 
 		var sendObject interface{}
-		if territory.FileType == entity.CongregationTerritoryFileTypePhoto {
+		switch territory.FileType {
+		case entity.CongregationTerritoryFileTypePhoto:
 			sendObject = &tb.Photo{
 				File: tb.File{
 					FileID: territory.FileID,
 				},
 				Caption: caption,
 			}
-		} else if territory.FileType == entity.CongregationTerritoryFileTypeDocument {
+		case entity.CongregationTerritoryFileTypeDocument:
 			sendObject = &tb.Document{
 				File: tb.File{
 					FileID: territory.FileID,
 				},
 				Caption: caption,
 			}
-		} else {
+		default:
 			logger.Error("unknown file type", "file_type", territory.FileType)
 			continue
 		}
@@ -1053,6 +1055,17 @@ func (s *botService) handleTakeTerritoryRequest(c tb.Context, b *tb.Bot, user *e
 		return c.Send(MessageTerritoryNotAvailable)
 	}
 
+	// Idempotency check: prevent duplicate requests on double-click.
+	existing, err := s.storages.Chat.GetRequestActionStateByTerritoryID(territoryID)
+	if err != nil {
+		logger.Error("failed to check existing request action state", "err", err)
+		return err
+	}
+	if existing != nil {
+		logger.Info("request action state already exists for territory")
+		return c.Send(MessageTakeTerritoryRequestSent)
+	}
+
 	admins, err := s.storages.User.ListUsers(&ListUsersFilter{
 		CongregationID: user.CongregationID,
 		Role:           entity.UserRoleAdmin,
@@ -1072,21 +1085,22 @@ func (s *botService) handleTakeTerritoryRequest(c tb.Context, b *tb.Bot, user *e
 	for _, admin := range admins {
 		message := fmt.Sprintf("<a href=\"tg://btn/%s/%s/%s\">\u200b</a> %s", user.ID, territoryID, requestActionStateID, MessageTakeTerritoryRequest(user, territory.Title))
 		var sendObject interface{}
-		if territory.FileType == entity.CongregationTerritoryFileTypePhoto {
+		switch territory.FileType {
+		case entity.CongregationTerritoryFileTypePhoto:
 			sendObject = &tb.Photo{
 				File: tb.File{
 					FileID: territory.FileID,
 				},
 				Caption: message,
 			}
-		} else if territory.FileType == entity.CongregationTerritoryFileTypeDocument {
+		case entity.CongregationTerritoryFileTypeDocument:
 			sendObject = &tb.Document{
 				File: tb.File{
 					FileID: territory.FileID,
 				},
 				Caption: message,
 			}
-		} else {
+		default:
 			logger.Error("unknown file type", "file_type", territory.FileType)
 			continue
 		}
@@ -1120,6 +1134,7 @@ func (s *botService) handleTakeTerritoryRequest(c tb.Context, b *tb.Bot, user *e
 
 	createdActionState, err := s.storages.Chat.CreateRequestActionState(&entity.RequestActionState{
 		ID:            requestActionStateID,
+		TerritoryID:   territoryID,
 		AdminMessages: messages,
 	})
 	if err != nil {

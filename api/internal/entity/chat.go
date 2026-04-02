@@ -18,7 +18,8 @@ const (
 
 // We suppose that we can have multiple admins.
 type RequestActionState struct {
-	ID string `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	ID          string `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
+	TerritoryID string `gorm:"type:uuid;index"`
 	// Keep messages id for each request in order to syncronize state of actions (approved, rejected, etc.)
 	AdminMessages datatypes.Slice[AdminMessage]
 }

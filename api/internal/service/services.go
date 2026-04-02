@@ -7,7 +7,6 @@ import (
 	"github.com/taraslis453/territory-service-bot/config"
 	"github.com/taraslis453/territory-service-bot/internal/entity"
 	"github.com/taraslis453/territory-service-bot/pkg/logging"
-	"github.com/taraslis453/territory-service-bot/pkg/sheets"
 	tb "gopkg.in/telebot.v3"
 )
 
@@ -21,7 +20,7 @@ type Options struct {
 	Cfg      *config.Config
 	Logger   logging.Logger
 	Storages Storages
-	Sheets   sheets.Service
+	Sheets   SheetsService
 }
 
 // serviceContext provides a shared context for all services
@@ -29,7 +28,7 @@ type serviceContext struct {
 	cfg      *config.Config
 	logger   logging.Logger
 	storages Storages
-	sheets   sheets.Service
+	sheets   SheetsService
 }
 
 type BotService interface {

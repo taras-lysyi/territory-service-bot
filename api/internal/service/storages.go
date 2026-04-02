@@ -72,5 +72,6 @@ type ListTerritoryGroupsFilter struct {
 type ChatStorage interface {
 	CreateRequestActionState(*entity.RequestActionState) (*entity.RequestActionState, error)
 	GetRequestActionState(id string) (*entity.RequestActionState, error)
+	GetRequestActionStateByTerritoryID(territoryID string) (*entity.RequestActionState, error)
 	DeleteRequestActionState(id string) error
 }

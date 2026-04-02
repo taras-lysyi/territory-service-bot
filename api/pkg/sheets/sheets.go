@@ -19,13 +19,6 @@ type Service struct {
 // Constants for sheet structure
 const (
 	// Row indices (0-based for API)
-	titleRow       = 0 // "ЗАПИСИ ПРО ОПРАЦЮВАННЯ ТЕРИТОРІЙ"
-	serviceYearRow = 2 // "Службовий рік: XXXX - XXXX"
-	separatorRow   = 3 // Empty row with bottom border
-	headerRow1     = 4 // Header row 1 (№ Тер., Місце, etc.)
-	headerRow2     = 5 // Header row 2 (Дата отримання, Дата опрацювання)
-	dataStartRow   = 6 // First territory data row (0-based)
-
 	// Column indices (0-based)
 	colTerritoryNum = 0 // A - № Тер.
 	colPlace        = 1 // B - Місце
@@ -36,10 +29,10 @@ const (
 	colsPerPublisher = 2
 
 	// Column widths in pixels
-	colWidthTerritoryNum = 60   // № Тер.
-	colWidthPlace        = 160  // Місце (wider for "Військова частина")
-	colWidthLastDate     = 140  // Остання дата опрацювання
-	colWidthPublisher    = 130  // Publisher name / dates
+	colWidthTerritoryNum = 60  // № Тер.
+	colWidthPlace        = 160 // Місце (wider for "Військова частина")
+	colWidthLastDate     = 140 // Остання дата опрацювання
+	colWidthPublisher    = 130 // Publisher name / dates
 
 	// Formatting colors
 	headerBgColor   = 0xD9D9D9 // Gray background for headers
@@ -154,8 +147,8 @@ func (s *Service) RecordTerritoryTake(spreadsheetID, territoryTitle, groupTitle,
 
 	_, err = s.client.Spreadsheets.Values.Update(spreadsheetID, writeRange, &sheets.ValueRange{
 		Values: [][]interface{}{
-			{publisherName, ""},       // Row 1: publisher name (merged across 2 cols)
-			{dateStr, ""},             // Row 2: date taken, date returned (empty)
+			{publisherName, ""}, // Row 1: publisher name (merged across 2 cols)
+			{dateStr, ""},       // Row 2: date taken, date returned (empty)
 		},
 	}).ValueInputOption("USER_ENTERED").Context(ctx).Do()
 	if err != nil {
@@ -169,10 +162,7 @@ func (s *Service) RecordTerritoryTake(spreadsheetID, territoryTitle, groupTitle,
 	}
 
 	// Add Вісник header for this column if it's a new column
-	err = s.addPublisherHeader(ctx, spreadsheetID, sheetName, sheetID, nextCol)
-	if err != nil {
-		// Log but don't fail
-	}
+	_ = s.addPublisherHeader(ctx, spreadsheetID, sheetName, sheetID, nextCol)
 
 	err = s.formatPublisherEntry(ctx, spreadsheetID, sheetID, rowIndex, nextCol)
 	if err != nil {
@@ -445,12 +435,9 @@ func (s *Service) RecordTerritoryReturn(spreadsheetID, territoryTitle, groupTitl
 
 	// Update the "Остання дата опрацювання" column (C) with the return date
 	lastDateRange := fmt.Sprintf("'%s'!C%d", sheetName, rowIndex)
-	_, err = s.client.Spreadsheets.Values.Update(spreadsheetID, lastDateRange, &sheets.ValueRange{
+	_, _ = s.client.Spreadsheets.Values.Update(spreadsheetID, lastDateRange, &sheets.ValueRange{
 		Values: [][]interface{}{{dateStr}},
 	}).ValueInputOption("USER_ENTERED").Context(ctx).Do()
-	if err != nil {
-		// Log but don't fail - return date was already written
-	}
 
 	return nil
 }
@@ -541,8 +528,8 @@ func (s *Service) RecordTerritoryTakeWithoutReturn(spreadsheetID, territoryTitle
 
 	_, err = s.client.Spreadsheets.Values.Update(spreadsheetID, publisherRange, &sheets.ValueRange{
 		Values: [][]interface{}{
-			{publisherName, ""},           // Row 1: Publisher name (merged)
-			{dateStr, ""},                 // Row 2: Take date, empty return date
+			{publisherName, ""}, // Row 1: Publisher name (merged)
+			{dateStr, ""},       // Row 2: Take date, empty return date
 		},
 	}).ValueInputOption("USER_ENTERED").Context(ctx).Do()
 	if err != nil {
@@ -1075,7 +1062,7 @@ func extractNumber(s string) (int, string) {
 		return -1, s
 	}
 	num := 0
-	fmt.Sscanf(s[:i], "%d", &num)
+	_, _ = fmt.Sscanf(s[:i], "%d", &num)
 	return num, s[i:]
 }
 

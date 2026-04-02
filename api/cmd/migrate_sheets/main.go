@@ -99,7 +99,7 @@ func extractLeadingNumber(s string) (int, string) {
 		return -1, s
 	}
 	num := 0
-	fmt.Sscanf(s[:i], "%d", &num)
+	_, _ = fmt.Sscanf(s[:i], "%d", &num)
 	return num, s[i:]
 }
 
@@ -147,10 +147,10 @@ func main() {
 
 	// Initialize database
 	sql, err := database.NewPostgreSQL(&database.PostgreSQLConfig{
-		User:     cfg.PostgreSQL.User,
-		Password: cfg.PostgreSQL.Password,
-		Host:     cfg.PostgreSQL.Host,
-		Database: cfg.PostgreSQL.Database,
+		User:     cfg.User,
+		Password: cfg.Password,
+		Host:     cfg.Host,
+		Database: cfg.Database,
 	})
 	if err != nil {
 		logger.Fatal("failed to init postgresql", "err", err)
@@ -173,7 +173,7 @@ func main() {
 	logger.Info("Using spreadsheet", "spreadsheetID", congregation.SpreadsheetID)
 
 	// Initialize Google Sheets service
-	sheetsService, err := sheets.New(cfg.Google.CredentialsJSON)
+	sheetsService, err := sheets.New(cfg.CredentialsJSON)
 	if err != nil {
 		logger.Fatal("failed to init sheets service", "err", err)
 	}

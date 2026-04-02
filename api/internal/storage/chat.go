@@ -6,6 +6,7 @@ import (
 	"github.com/taraslis453/territory-service-bot/internal/entity"
 	"github.com/taraslis453/territory-service-bot/internal/service"
 	"github.com/taraslis453/territory-service-bot/pkg/database"
+	"gorm.io/gorm"
 )
 
 type chatStorage struct {
@@ -54,6 +55,22 @@ func (s *chatStorage) GetRequestActionState(id string) (*entity.RequestActionSta
 		Error
 	if err != nil {
 		return nil, fmt.Errorf("failed to get request action state: %w", err)
+	}
+
+	return &requestActionState, nil
+}
+
+func (s *chatStorage) GetRequestActionStateByTerritoryID(territoryID string) (*entity.RequestActionState, error) {
+	requestActionState := entity.RequestActionState{}
+	err := s.Instance().
+		Where(&entity.RequestActionState{TerritoryID: territoryID}).
+		Take(&requestActionState).
+		Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get request action state by territory id: %w", err)
 	}
 
 	return &requestActionState, nil

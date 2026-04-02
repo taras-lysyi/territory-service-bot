@@ -17,10 +17,10 @@ func main() {
 	cfg := config.Get()
 
 	sql, err := database.NewPostgreSQL(&database.PostgreSQLConfig{
-		User:     cfg.PostgreSQL.User,
-		Password: cfg.PostgreSQL.Password,
-		Host:     cfg.PostgreSQL.Host,
-		Database: cfg.PostgreSQL.Database,
+		User:     cfg.User,
+		Password: cfg.Password,
+		Host:     cfg.Host,
+		Database: cfg.Database,
 	})
 	if err != nil {
 		logger.Fatal("failed to init postgresql", "err", err)

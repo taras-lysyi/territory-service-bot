@@ -31,7 +31,7 @@ const (
 
 func NewBot(options *Options) error {
 	pref := tb.Settings{
-		Token:  options.Config.Telegram.BotToken,
+		Token:  options.Config.BotToken,
 		Poller: &tb.LongPoller{Timeout: 10 * time.Second},
 	}
 

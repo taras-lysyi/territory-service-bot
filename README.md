@@ -13,6 +13,12 @@ Telegram bot for managing territory assignments in congregations of Jehovah's Wi
 
 Built with Go, PostgreSQL and the Telegram and Google Sheets APIs. Deployed on Google Cloud Run.
 
+## Google Sheets
+
+Approvals add a name and date; returns fill the completion date. Later assignments keep the earlier history. The service-year tab and territory rows must be set up first.
+
+![Sheets demo: approval writes a name and date, return updates the completion date, and reassignment adds a new column pair.](docs/sheets-preview.png)
+
 ## Development
 
 See [setup instructions](api/README.md).

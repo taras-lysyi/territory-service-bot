@@ -11,8 +11,8 @@ type Congregation struct {
 
 type CongregationTerritoryGroup struct {
 	ID             string `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()"`
-	CongregationID string `gorm:"type:uuid;index"`
-	Title          string // can be place name like Kiev, Lviv, etc.
+	CongregationID string `gorm:"type:uuid;uniqueIndex:idx_ctg_congregation_title"`
+	Title          string `gorm:"uniqueIndex:idx_ctg_congregation_title"` // can be place name like Kiev, Lviv, etc.
 }
 
 type CongregationTerritory struct {

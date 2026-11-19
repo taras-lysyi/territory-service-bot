@@ -23,6 +23,11 @@ type PostgreSQL struct {
 // Check if implements the interface.
 var _ Database = (*PostgreSQL)(nil)
 
+// NewFromGORM wraps an existing *gorm.DB in a Database interface — useful in tests.
+func NewFromGORM(db *gorm.DB) *PostgreSQL {
+	return &PostgreSQL{DB: db}
+}
+
 // NewPostgreSQL is used to create new instance of PostgreSQL.
 func NewPostgreSQL(cfg *PostgreSQLConfig) (*PostgreSQL, error) {
 	dsn := fmt.Sprintf(

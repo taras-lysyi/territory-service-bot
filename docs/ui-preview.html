@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Territory Service Bot — illustrative mockup</title>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; background: #f4f6f8; color: #203343; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+main { width: 1440px; padding: 48px 56px 32px; }
+header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 34px; }
+h1 { font-size: 36px; letter-spacing: -1px; margin: 0 0 10px; font-weight: 700; }
+header p { margin: 0; color: #556775; font-size: 18px; }
+.panels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px 24px; }
+h2 { font-size: 18px; margin: 0 0 16px; font-weight: 650; }
+h2 span { display: inline-grid; place-items: center; background: #e2ebf3; color: #386480; border-radius: 50%; width: 28px; height: 28px; font-size: 14px; margin-right: 9px; }
+.chat { border: 1px solid #d3dde3; border-radius: 16px; overflow: hidden; height: 710px; background: #dfe9e3; }
+.chat-head { height: 74px; background: #fff; display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid #dbe3e7; }
+.avatar { width: 42px; height: 42px; background: #4b93ba; color: white; border-radius: 50%; display: grid; place-items: center; font-weight: 650; font-size: 17px; }
+.chat-head strong { font-size: 17px; display: block; }
+.chat-head small { display: block; margin-top: 3px; color: #788791; font-size: 13px; }
+.messages { padding: 18px 14px; font-size: 17px; line-height: 1.45; }
+.bubble { background: white; padding: 12px 14px; border-radius: 12px; margin-bottom: 12px; max-width: 96%; box-shadow: 0 1px 1px #16322c15; }
+.outgoing { background: #ecffd9; width: fit-content; margin-left: auto; }
+.card { background: white; overflow: hidden; padding: 0; }
+.map { display: block; width: 100%; height: 208px; background: #f7f5ed; }
+.map.small { height: 146px; }
+.map.mini { height: 100px; }
+.link { color: #2675a6; text-decoration: underline; }
+.divider { margin: 16px 0; text-align: center; color: #587063; font-size: 12px; font-weight: 600; letter-spacing: .7px; }
+.reply { border-left: 3px solid #74a36b; padding-left: 9px; margin-bottom: 7px; color: #587063; font-size: 13px; }
+.caption { padding: 12px 14px; }
+.actions { display: flex; gap: 1px; border-top: 1px solid #d8e6ed; background: #d8e6ed; }
+.action { flex: 1; padding: 11px 5px; background: #f5faff; color: #2675a6; text-align: center; font-size: 16px; font-weight: 550; }
+.stacked { flex-direction: column; }
+.hint { margin: 14px 4px 0; font-size: 13px; line-height: 1.5; color: #4d655b; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" aria-hidden="true" style="position:absolute"><defs>
+<symbol id="map" viewBox="0 0 380 208">
+<rect width="380" height="208" fill="#f4f1e7"/>
+<path d="M0 158 Q80 132 128 175 T380 166 L380 208 L0 208Z" fill="#d3e5ed"/>
+<g fill="#e0e5ce"><rect x="17" y="20" width="76" height="52" rx="8"/><rect x="285" y="28" width="77" height="66" rx="12"/><rect x="19" y="105" width="45" height="34" rx="7"/></g>
+<g fill="#e2dcd0" stroke="#d6cebf"><rect x="119" y="25" width="48" height="30" rx="3"/><rect x="187" y="24" width="61" height="31" rx="3"/><rect x="121" y="87" width="44" height="38" rx="3"/><rect x="187" y="87" width="62" height="38" rx="3"/><rect x="283" y="116" width="63" height="27" rx="3"/></g>
+<g fill="none" stroke="#fff" stroke-width="13"><path d="M102 0V155M0 73H380M176 0V155M267 0V162"/></g>
+<rect x="110" y="14" width="148" height="122" rx="8" fill="#65a5cc" fill-opacity=".13" stroke="#4383ab" stroke-width="2.5" stroke-dasharray="7 5"/>
+<rect x="144" y="56" width="79" height="33" rx="16" fill="#367ea7"/>
+<text x="183" y="79" text-anchor="middle" font-family="sans-serif" font-size="19" font-weight="700" fill="white">12-A</text>
+
+
+</symbol></defs></svg>
+<main>
+<header><div><h1>Territory Service Bot</h1><p>Membership, territory assignments, maps and reports — through Telegram.</p></div></header>
+<div class="panels">
+<section><h2><span>1</span>Member · Join a congregation</h2><div class="chat"><div class="chat-head"><div class="avatar">TS</div><div><strong>Territory Service Bot</strong><small>bot</small></div></div><div class="messages"><div class="bubble outgoing">/start</div><div class="bubble">What is your full name? ✍️</div><div class="bubble outgoing">Alex Example</div><div class="bubble">Which congregation are you from? ✍️</div><div class="bubble outgoing">North Congregation</div><div class="bubble">Your request to join <strong>North Congregation</strong> has been sent. Please wait for a response 😌</div><p class="hint">Membership requests go to the congregation’s administrators.</p></div></div></section>
+<section><h2><span>2</span>Member · Request a territory</h2><div class="chat"><div class="chat-head"><div class="avatar">TS</div><div><strong>Territory Service Bot</strong><small>bot</small></div></div><div class="messages"><div class="bubble outgoing">🔍 Browse territories</div><div class="bubble">Available territories:<div class="actions"><div class="action">North district</div></div></div><div class="bubble card"><svg class="map " role="img" aria-label="Territory map"><use href="#map"/></svg><div class="caption">Territory: 12-A<br>Last covered: <strong>1 Oct 2026</strong></div><div class="actions"><div class="action">🗺️ Take territory 12-A</div></div></div><p class="hint">Choose a group, then request an available territory. The map caption updates while approval is pending.</p></div></div></section>
+<section><h2><span>3</span>Administrator · Approve requests</h2><div class="chat"><div class="chat-head"><div class="avatar">TS</div><div><strong>Territory Service Bot</strong><small>bot</small></div></div><div class="messages"><div class="bubble">Alex Example wants to join<div class="actions"><div class="action">✅ Approve</div><div class="action">❌ Decline</div></div></div><div class="divider">TERRITORY REQUEST</div><div class="bubble card"><svg class="map small" role="img" aria-label="Territory map"><use href="#map"/></svg><div class="caption">Alex Example wants to take 12-A</div><div class="actions"><div class="action">✅ Approve</div><div class="action">❌ Decline</div></div></div><p class="hint">After approval, the member receives a confirmation. Requests are sent to the congregation’s administrators.</p></div></div></section>
+<section><h2><span>4</span>Member · Add notes and return</h2><div class="chat"><div class="chat-head"><div class="avatar">TS</div><div><strong>Territory Service Bot</strong><small>bot</small></div></div><div class="messages"><div class="bubble outgoing">🗂️ My territories</div><div class="bubble card"><svg class="map mini" role="img" aria-label="Territory map"><use href="#map"/></svg><div class="caption">Territory: 12-A<br>16 Nov 2026</div><div class="actions stacked"><div class="action">📝 Add a note</div><div class="action">🔄 Return territory</div></div></div><div class="bubble">Leave a note for territory 12-A ✍️</div><div class="bubble outgoing"><div class="reply">Leave a note for territory 12-A</div>Eastern section completed.</div><div class="bubble">Note saved ✅</div><p class="hint">Returning the territory updates its map caption to “Territory returned ✅” and notifies administrators.</p></div></div></section>
+<section><h2><span>5</span>Administrator · Upload a map</h2><div class="chat"><div class="chat-head"><div class="avatar">TS</div><div><strong>Territory Service Bot</strong><small>bot</small></div></div><div class="messages"><div class="bubble outgoing">🌍 Add territory</div><div class="bubble">Send an image or document with a caption in this format: <strong>Group_title</strong>.<br>For example: <strong>North district_12-A</strong> 📸</div><div class="bubble card outgoing"><svg class="map " role="img" aria-label="Territory map"><use href="#map"/></svg><div class="caption">North district_12-A</div></div><div class="bubble">Territory 12-A successfully added to group North district!</div></div></div></section>
+<section><h2><span>6</span>Administrator · View reports</h2><div class="chat"><div class="chat-head"><div class="avatar">TS</div><div><strong>Territory Service Bot</strong><small>bot</small></div></div><div class="messages"><div class="bubble">Member <strong>Alex Example</strong> returned territory <strong>12-A</strong> ✅</div><div class="bubble outgoing">📊 Report</div><div class="bubble">📊 <strong>Territory report</strong><br><br><span class="link">Open spreadsheet</span></div><p class="hint">Opens the congregation’s Google Sheets report. Assignments and returns are recorded when the integration is configured.</p><div class="divider">IN THE LINKED SPREADSHEET</div><p class="hint"><strong>Assignment history</strong><br>Territory number and group<br>Member name<br>Date taken and date returned<br><br>Separate tabs for each service year.</p></div></div></section>
+</div>
+</main>
+</body>
+</html>
